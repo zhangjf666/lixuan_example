@@ -3,8 +3,9 @@ package com.lixuan.controller;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.lang.Dict;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
 import com.lixuan.util.HttpClientUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -113,51 +114,64 @@ public class HikCameraController {
                 }
                 pairs.add(0, new BasicNameValuePair("format", "json"));
             }
-            ub.setParameters(pairs);
+            if(pairs != null){
+                ub.setParameters(pairs);
+            }
             String address = useHttps ? "https:" : "http:" + ub;
+            log.info("发送命令url:" + address);
             request = new HttpGet(address);
         } else if(method.equalsIgnoreCase("POST")){
             String address = useHttps ? "https:" : "http:" + ub;
             if(StringUtils.equalsIgnoreCase(contentType, "json")){
                 address = address + "?format=json";
             }
+            log.info("发送命令url:" + address);
             request = new HttpPost(address);
-            if(StringUtils.equalsIgnoreCase(contentType, "json")){
-                JSONObject jbs = new JSONObject();
-                if(!paraMap.isEmpty()){
-                    for (Map.Entry p: paraMap.entrySet()) {
-                        jbs.put(p.getKey().toString(), p.getValue());
-                    }
-                    JSONObject jb = new JSONObject();
-                    jb.put(parameterName, jbs);
-                    StringEntity entity = new StringEntity(jb.toString());
-                    ((HttpPost)request).setEntity(entity);
-                    entity.setContentEncoding("utf-8");
+            String requestStr = "";
+            JSONObject jb = new JSONObject();
+            JSONObject jbs = new JSONObject();
+            if(!paraMap.isEmpty()){
+                for (Map.Entry p: paraMap.entrySet()) {
+                    jbs.set(p.getKey().toString(), p.getValue());
                 }
-            } else if (StringUtils.equalsIgnoreCase(contentType, "xml")) {
-                log.warn("暂时不支持xml方式");
+                jb.set(parameterName, jbs);
+
             }
+            if(StringUtils.equalsIgnoreCase(contentType, "json")){
+                requestStr = jb.toString();
+            } else if (StringUtils.equalsIgnoreCase(contentType, "xml")) {
+                requestStr = JSONUtil.toXmlStr(jb);
+            }
+            log.info("发送的内容:" + requestStr);
+            StringEntity entity = new StringEntity(requestStr);
+            ((HttpPost)request).setEntity(entity);
+            entity.setContentEncoding("utf-8");
         } else if(method.equalsIgnoreCase("PUT")){
             String address = useHttps ? "https:" : "http:" + ub;
             if(StringUtils.equalsIgnoreCase(contentType, "json")){
                 address = address + "?format=json";
             }
+            log.info("发送命令url:" + address);
             request = new HttpPut(address);
-            if(StringUtils.equalsIgnoreCase(contentType, "json")){
-                JSONObject jbs = new JSONObject();
-                if(!paraMap.isEmpty()){
-                    for (Map.Entry p: paraMap.entrySet()) {
-                        jbs.put(p.getKey().toString(), p.getValue());
-                    }
-                    JSONObject jb = new JSONObject();
-                    jb.put(parameterName, jbs);
-                    StringEntity entity = new StringEntity(jb.toString());
-                    ((HttpPut)request).setEntity(entity);
-                    entity.setContentEncoding("utf-8");
+            String requestStr = "";
+            JSONObject jb = new JSONObject();
+            JSONObject jbs = new JSONObject();
+            if(!paraMap.isEmpty()){
+                for (Map.Entry p: paraMap.entrySet()) {
+                    jbs.set(p.getKey().toString(), p.getValue());
                 }
-            } else if (StringUtils.equalsIgnoreCase(contentType, "xml")) {
-                log.warn("暂时不支持xml方式");
+                jb.set(parameterName, jbs);
+
             }
+            if(StringUtils.equalsIgnoreCase(contentType, "json")){
+                requestStr = jb.toString();
+            } else if (StringUtils.equalsIgnoreCase(contentType, "xml")) {
+                requestStr = JSONUtil.toXmlStr(jb);
+            }
+            log.info("发送的内容:" + requestStr);
+            StringEntity entity = new StringEntity(requestStr);
+            ((HttpPut)request).setEntity(entity);
+            entity.setContentEncoding("utf-8");
         }
         request.setConfig(requestConfig);
         CloseableHttpResponse response = null;
