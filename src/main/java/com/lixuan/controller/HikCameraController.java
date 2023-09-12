@@ -1,40 +1,38 @@
 package com.lixuan.controller;
 
-import cn.hutool.core.date.DateTime;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.lang.Dict;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.lixuan.util.HttpClientUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.AuthCache;
 import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.client.methods.*;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.auth.DigestScheme;
 import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.message.BasicHeader;
+import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-import org.hibernate.validator.internal.util.privilegedactions.GetMethod;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
@@ -42,9 +40,11 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -52,7 +52,7 @@ import java.util.Date;
 public class HikCameraController {
 
     @PostMapping("/sendCommand")
-    public void sendCommand(@RequestBody String commandJson) throws URISyntaxException {
+    public void sendCommand(@RequestBody String commandJson) throws URISyntaxException, UnsupportedEncodingException {
         log.info("发送命令参数:" + commandJson);
         Dict command = JSON.parseObject(commandJson, Dict.class);
         String ip = command.getStr("ip");
@@ -61,9 +61,24 @@ public class HikCameraController {
         String password = command.getStr("password");
         String url = command.getStr("url");
         Boolean useHttps = command.getBool("useHttps");
+        String contentType = command.getStr("contentType");
+        String parameterName = command.getStr("parameterName");
         String method = command.getStr("method");
 
-        String address = StrUtil.format("http://{}:{}{}", ip, port, url);
+        //获取参数
+        String params = command.getStr("params");
+        Dict paraMap = Dict.create();
+        if(StringUtils.isNotBlank(params)){
+            String[] param = params.split("\\|");
+            for (String p: param) {
+                if(StringUtils.isNotBlank(p)){
+                    String[] comple = p.split("=");
+                    if(comple.length == 2){
+                        paraMap.set(comple[0], comple[1]);
+                    }
+                }
+            }
+        }
 
         //发送命令
         CloseableHttpClient httpClient = HttpClientUtil.getHttpClient();
@@ -83,18 +98,75 @@ public class HikCameraController {
                 .setAuthenticationEnabled(true)
                 .build();
         HttpRequestBase request = null;
+        URIBuilder ub = new URIBuilder();
+        ub.setHost(ip);
+        ub.setPort(Integer.parseInt(port));
+        ub.setPath(url);
         if(method.equalsIgnoreCase("GET")){
+            ArrayList<NameValuePair> pairs = null;
+            if(!paraMap.isEmpty()){
+                pairs = covertParams2NVPS(paraMap);
+            }
+            if(StringUtils.equalsIgnoreCase(contentType, "json")){
+                if(pairs == null){
+                    pairs = new ArrayList<>();
+                }
+                pairs.add(0, new BasicNameValuePair("format", "json"));
+            }
+            ub.setParameters(pairs);
+            String address = useHttps ? "https:" : "http:" + ub;
             request = new HttpGet(address);
         } else if(method.equalsIgnoreCase("POST")){
+            String address = useHttps ? "https:" : "http:" + ub;
+            if(StringUtils.equalsIgnoreCase(contentType, "json")){
+                address = address + "?format=json";
+            }
             request = new HttpPost(address);
+            if(StringUtils.equalsIgnoreCase(contentType, "json")){
+                JSONObject jbs = new JSONObject();
+                if(!paraMap.isEmpty()){
+                    for (Map.Entry p: paraMap.entrySet()) {
+                        jbs.put(p.getKey().toString(), p.getValue());
+                    }
+                    JSONObject jb = new JSONObject();
+                    jb.put(parameterName, jbs);
+                    StringEntity entity = new StringEntity(jb.toString());
+                    ((HttpPost)request).setEntity(entity);
+                    entity.setContentEncoding("utf-8");
+                }
+            } else if (StringUtils.equalsIgnoreCase(contentType, "xml")) {
+                log.warn("暂时不支持xml方式");
+            }
+        } else if(method.equalsIgnoreCase("PUT")){
+            String address = useHttps ? "https:" : "http:" + ub;
+            if(StringUtils.equalsIgnoreCase(contentType, "json")){
+                address = address + "?format=json";
+            }
+            request = new HttpPut(address);
+            if(StringUtils.equalsIgnoreCase(contentType, "json")){
+                JSONObject jbs = new JSONObject();
+                if(!paraMap.isEmpty()){
+                    for (Map.Entry p: paraMap.entrySet()) {
+                        jbs.put(p.getKey().toString(), p.getValue());
+                    }
+                    JSONObject jb = new JSONObject();
+                    jb.put(parameterName, jbs);
+                    StringEntity entity = new StringEntity(jb.toString());
+                    ((HttpPut)request).setEntity(entity);
+                    entity.setContentEncoding("utf-8");
+                }
+            } else if (StringUtils.equalsIgnoreCase(contentType, "xml")) {
+                log.warn("暂时不支持xml方式");
+            }
         }
         request.setConfig(requestConfig);
         CloseableHttpResponse response = null;
+        String result = "";
         try {
             response = httpClient.execute(request, httpClientContext);
             HttpEntity entity = response.getEntity();
             if (entity != null) {
-                String result = EntityUtils.toString(entity);
+                result = EntityUtils.toString(entity);
                 //打印接受到的消息
                 log.info("发送命令成功,返回信息:" + result);
             }
@@ -114,6 +186,7 @@ public class HikCameraController {
 
     @PostMapping("/listenMessage")
     public void receiveAlarm(HttpServletResponse response, HttpServletRequest request) throws IOException {
+        log.info("收到监听事件");
         String method = request.getMethod();
         if(HttpMethod.POST.matches(method)){
             //Read stream
@@ -129,11 +202,19 @@ public class HikCameraController {
 
             String contentType = request.getContentType();
             //打印监听事件内容
-            log.info("收到监听事件内容:" + output.toString());
+            log.info("收到监听事件内容:" + output);
 
             response.setStatus(HttpStatus.OK.value());
             response.getWriter().append("Date: ").append(DateUtil.formatDate(new Date())).append("Connection: close");
             response.getWriter().flush();
         }
+    }
+
+    private ArrayList<NameValuePair> covertParams2NVPS(Map<String, Object> params) {
+        ArrayList<NameValuePair> pairs = new ArrayList<NameValuePair>();
+        for (Map.Entry<String, Object> param : params.entrySet()) {
+            pairs.add(new BasicNameValuePair(param.getKey(), String.valueOf(param.getValue())));
+        }
+        return pairs;
     }
 }
