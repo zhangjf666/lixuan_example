@@ -229,6 +229,7 @@ public class HikCameraController {
         StringBuffer buffer = new StringBuffer();
         buffer.append(useHttps ? "https://" : "http://");
         buffer.append(ip);
+        buffer.append(":");
         buffer.append(port);
         buffer.append(url);
         if(StringUtils.equalsIgnoreCase(contentType, "json")){
