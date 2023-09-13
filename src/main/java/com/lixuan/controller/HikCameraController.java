@@ -99,32 +99,12 @@ public class HikCameraController {
                 .setAuthenticationEnabled(true)
                 .build();
         HttpRequestBase request = null;
-        URIBuilder ub = new URIBuilder();
-        ub.setHost(ip);
-        ub.setPort(Integer.parseInt(port));
-        ub.setPath(url);
         if(method.equalsIgnoreCase("GET")){
-            ArrayList<NameValuePair> pairs = null;
-            if(!paraMap.isEmpty()){
-                pairs = covertParams2NVPS(paraMap);
-            }
-            if(StringUtils.equalsIgnoreCase(contentType, "json")){
-                if(pairs == null){
-                    pairs = new ArrayList<>();
-                }
-                pairs.add(0, new BasicNameValuePair("format", "json"));
-            }
-            if(pairs != null){
-                ub.setParameters(pairs);
-            }
-            String address = useHttps ? "https:" : "http:" + ub;
+            String address = createGetUrl(useHttps, ip, port, url, contentType, paraMap);
             log.info("发送命令url:" + address);
             request = new HttpGet(address);
         } else if(method.equalsIgnoreCase("POST")){
-            String address = useHttps ? "https:" : "http:" + ub;
-            if(StringUtils.equalsIgnoreCase(contentType, "json")){
-                address = address + "?format=json";
-            }
+            String address = createUrl(useHttps, ip, port, url, contentType);
             log.info("发送命令url:" + address);
             request = new HttpPost(address);
             String requestStr = "";
@@ -147,10 +127,7 @@ public class HikCameraController {
             ((HttpPost)request).setEntity(entity);
             entity.setContentEncoding("utf-8");
         } else if(method.equalsIgnoreCase("PUT")){
-            String address = useHttps ? "https:" : "http:" + ub;
-            if(StringUtils.equalsIgnoreCase(contentType, "json")){
-                address = address + "?format=json";
-            }
+            String address = createUrl(useHttps, ip, port, url, contentType);
             log.info("发送命令url:" + address);
             request = new HttpPut(address);
             String requestStr = "";
@@ -230,5 +207,33 @@ public class HikCameraController {
             pairs.add(new BasicNameValuePair(param.getKey(), String.valueOf(param.getValue())));
         }
         return pairs;
+    }
+
+    private String createGetUrl(boolean useHttps, String ip, String port, String url, String contentType, Dict params){
+        StringBuffer buffer = new StringBuffer(createUrl(useHttps, ip, port, url, contentType));
+        if(!params.isEmpty()){
+            if(buffer.indexOf("?") > 0){
+                buffer.append("&");
+            } else {
+                buffer.append("?");
+            }
+            for (Map.Entry entry:params.entrySet()) {
+                buffer.append(StrUtil.format("{}={}&", entry.getKey(), entry.getValue()));
+            }
+            return buffer.substring(0, buffer.length() - 1);
+        }
+        return buffer.toString();
+    }
+
+    private String createUrl(boolean useHttps, String ip, String port, String url, String contentType){
+        StringBuffer buffer = new StringBuffer();
+        buffer.append(useHttps ? "https://" : "http://");
+        buffer.append(ip);
+        buffer.append(port);
+        buffer.append(url);
+        if(StringUtils.equalsIgnoreCase(contentType, "json")){
+            buffer.append("?format=json");
+        }
+        return buffer.toString();
     }
 }
