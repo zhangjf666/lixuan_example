@@ -30,6 +30,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,12 +47,16 @@ import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.Map;
 
 @Slf4j
 @RestController
 @RequiredArgsConstructor
 public class HikCameraController {
+
+    @Autowired
+    private Environment env;
 
     @PostMapping("/sendCommand")
     public void sendCommand(@RequestBody String commandJson) throws URISyntaxException, UnsupportedEncodingException {
@@ -180,6 +186,20 @@ public class HikCameraController {
         log.info("收到监听事件");
         String method = request.getMethod();
         if(HttpMethod.POST.matches(method)){
+
+            if("1".equals(env.getProperty("system.listenMessage.header","0"))){
+                Enumeration<String> headerNames = request.getHeaderNames();
+                while(headerNames.hasMoreElements()){
+                    String headerName = headerNames.nextElement();
+                    log.info("headerName:{}, headerValue:{}", headerName, request.getHeader(headerName));
+                }
+            }
+            if("1".equals(env.getProperty("system.listenMessage.contentType","0"))){
+                log.info("content-type:" + request.getContentType());
+            }
+            if("1".equals(env.getProperty("system.listenMessage.contentLength","0"))){
+                log.info("content-length:" + request.getContentLength());
+            }
             //Read stream
             byte[] buffer=new byte[50*1024];
             DataInputStream dataInputStream = new DataInputStream(request.getInputStream());

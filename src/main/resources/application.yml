@@ -18,3 +18,8 @@ server:
 spring:
   application:
     name: exapmle-server
+system
+  listenMessage
+    header: 1
+    contentType: 1
+    contentLengh: 1
