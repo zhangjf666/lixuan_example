@@ -36,7 +36,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -45,6 +47,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
@@ -187,17 +190,24 @@ public class HikCameraController {
         String method = request.getMethod();
         if(HttpMethod.POST.matches(method)){
 
-            if("1".equals(env.getProperty("system.listenMessage.header","0"))){
+            if("1".equals(env.getProperty("system.listenMessage.header","1"))){
                 Enumeration<String> headerNames = request.getHeaderNames();
                 while(headerNames.hasMoreElements()){
                     String headerName = headerNames.nextElement();
                     log.info("headerName:{}, headerValue:{}", headerName, request.getHeader(headerName));
                 }
             }
-            if("1".equals(env.getProperty("system.listenMessage.contentType","0"))){
+            if("1".equals(env.getProperty("system.listenMessage.parameter","1"))){
+                Enumeration<String> parameterNames = request.getParameterNames();
+                while(parameterNames.hasMoreElements()){
+                    String parameterName = parameterNames.nextElement();
+                    log.info("parameterName:{}, parameterValue:{}", parameterName, request.getParameter(parameterName));
+                }
+            }
+            if("1".equals(env.getProperty("system.listenMessage.contentType","1"))){
                 log.info("content-type:" + request.getContentType());
             }
-            if("1".equals(env.getProperty("system.listenMessage.contentLength","0"))){
+            if("1".equals(env.getProperty("system.listenMessage.contentLength","1"))){
                 log.info("content-length:" + request.getContentLength());
             }
             //Read stream
@@ -210,8 +220,23 @@ public class HikCameraController {
                 output.write(buffer, 0, length);
             }
             dataInputStream.close();
+//
+//            String contentType = request.getContentType();
+//            if(file.isEmpty()){
+//                log.error("接受文件失败");
+//            } else{
+//                log.info("接收到文件名称:{}", file.getOriginalFilename());
+//                String output = "";
+//                try {
+//                    byte[] bytes = file.getBytes();
+//                    output = new String(bytes, StandardCharsets.UTF_8);
+//                } catch (IOException e) {
+//                    log.error(e.getMessage(), e);
+//                }
+//                //打印监听事件内容
+//                log.info("收到监听事件内容:" + output);
+//            }
 
-            String contentType = request.getContentType();
             //打印监听事件内容
             log.info("收到监听事件内容:" + output);
 
