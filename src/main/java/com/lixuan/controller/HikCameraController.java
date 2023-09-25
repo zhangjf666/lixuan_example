@@ -42,10 +42,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -212,14 +209,14 @@ public class HikCameraController {
             }
             //Read stream
             byte[] buffer=new byte[50*1024];
-            DataInputStream dataInputStream = new DataInputStream(request.getInputStream());
-            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            InputStreamReader reader = new InputStreamReader(request.getInputStream());
+            BufferedReader br = new BufferedReader(reader);
 
-            int length;
-            while ((length = dataInputStream.read(buffer)) > 0) {
-                output.write(buffer, 0, length);
+            StringBuilder output= new StringBuilder();
+            String temp="";
+            while ((temp = br.readLine()) != null) {
+                output.append(temp);
             }
-            dataInputStream.close();
 //
 //            String contentType = request.getContentType();
 //            if(file.isEmpty()){
