@@ -9,6 +9,10 @@ import com.alibaba.fastjson.JSON;
 import com.lixuan.util.HttpClientUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.FileItemFactory;
+import org.apache.commons.fileupload.disk.DiskFileItemFactory;
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -32,23 +36,15 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @RestController
@@ -181,65 +177,58 @@ public class HikCameraController {
         }
     }
 
-    @PostMapping("/listenMessage")
+    @PostMapping(value = {"/listenMessage","/alarm"})
     public void receiveAlarm(HttpServletResponse response, HttpServletRequest request) throws IOException {
         log.info("收到监听事件");
-        String method = request.getMethod();
-        if(HttpMethod.POST.matches(method)){
-
-            if("1".equals(env.getProperty("system.listenMessage.header","1"))){
-                Enumeration<String> headerNames = request.getHeaderNames();
-                while(headerNames.hasMoreElements()){
-                    String headerName = headerNames.nextElement();
-                    log.info("headerName:{}, headerValue:{}", headerName, request.getHeader(headerName));
+        FileItemFactory factory = new DiskFileItemFactory();
+        ServletFileUpload sf = new ServletFileUpload(factory);
+        try {
+            if (!ServletFileUpload.isMultipartContent(request)) {
+                log.info(request.getContentType());
+                throw new Exception("no multipartContent");
+            }else {
+                List<FileItem> formData = sf.parseRequest(request);
+                for (FileItem fi : formData) {
+                    if (fi.isFormField()) {
+                        log.info("content-type:{}",fi.getContentType());
+                        log.info("field_name:" + fi.getFieldName() + ":" + fi.getString("UTF-8"));
+                        switch (fi.getFieldName()) {
+                            case "event_log":
+                                log.info("receive name");
+                                break;
+                            default:
+                                log.info("unknow data");
+                        }
+                    } else {
+                        String image_name = fi.getName();
+                        log.info("image_name:" + image_name);
+                        log.info("content-type:{}",fi.getContentType());
+                        log.info("size:{}",fi.getSize());
+                        if (!"".equals(image_name)) {
+                            String image_dir_path = request.getServletContext().getRealPath("/images/");
+                            File image_dir = new File(image_dir_path);
+                            if (!image_dir.exists()) {
+                                image_dir.mkdir();
+                            }
+                            String file_name = UUID.randomUUID().toString();
+                            String suffix = image_name.substring(fi.getName().lastIndexOf("."));
+                            log.info("image_dir_path:" + image_dir_path);
+                            log.info("file_name:" + file_name);
+                            log.info("suffix:" + suffix);
+                            // 图片保存
+                            fi.write(new File(image_dir_path, file_name + suffix));
+                        } else {
+                            throw new Exception("no file receive");
+                        }
+                    }
                 }
+                response.setStatus(HttpStatus.OK.value());
+                response.getWriter().append("Date: ").append(DateUtil.formatDate(new Date())).append("Connection: close");
+                response.getWriter().flush();
             }
-            if("1".equals(env.getProperty("system.listenMessage.parameter","1"))){
-                Enumeration<String> parameterNames = request.getParameterNames();
-                while(parameterNames.hasMoreElements()){
-                    String parameterName = parameterNames.nextElement();
-                    log.info("parameterName:{}, parameterValue:{}", parameterName, request.getParameter(parameterName));
-                }
-            }
-            if("1".equals(env.getProperty("system.listenMessage.contentType","1"))){
-                log.info("content-type:" + request.getContentType());
-            }
-            if("1".equals(env.getProperty("system.listenMessage.contentLength","1"))){
-                log.info("content-length:" + request.getContentLength());
-            }
-            //Read stream
-            byte[] buffer=new byte[50*1024];
-            InputStreamReader reader = new InputStreamReader(request.getInputStream());
-            BufferedReader br = new BufferedReader(reader);
-
-            StringBuilder output= new StringBuilder();
-            String temp="";
-            while ((temp = br.readLine()) != null) {
-                output.append(temp);
-            }
-//
-//            String contentType = request.getContentType();
-//            if(file.isEmpty()){
-//                log.error("接受文件失败");
-//            } else{
-//                log.info("接收到文件名称:{}", file.getOriginalFilename());
-//                String output = "";
-//                try {
-//                    byte[] bytes = file.getBytes();
-//                    output = new String(bytes, StandardCharsets.UTF_8);
-//                } catch (IOException e) {
-//                    log.error(e.getMessage(), e);
-//                }
-//                //打印监听事件内容
-//                log.info("收到监听事件内容:" + output);
-//            }
-
-            //打印监听事件内容
-            log.info("收到监听事件内容:" + output);
-
-            response.setStatus(HttpStatus.OK.value());
-            response.getWriter().append("Date: ").append(DateUtil.formatDate(new Date())).append("Connection: close");
-            response.getWriter().flush();
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            response.getWriter().write("false");
         }
     }
 
