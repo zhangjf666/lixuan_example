@@ -38,6 +38,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -177,6 +178,32 @@ public class HikCameraController {
         }
     }
 
+    @PostMapping(value = {"/test"})
+    public void receiveMessage(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        log.info("接收test事件.");
+        MultipartHttpServletRequest multipartHttpServletRequest = (MultipartHttpServletRequest)request;
+        Enumeration<String> parameterNames = multipartHttpServletRequest.getParameterNames();
+        log.info("parameterNames begin");
+        if(parameterNames.hasMoreElements()){
+            String name = parameterNames.nextElement();
+            log.info("parameter name={}", name);
+        }
+        log.info("parameterNames end");
+
+        Iterator<String> fileNames = multipartHttpServletRequest.getFileNames();
+        log.info("fileNames begin");
+        if(fileNames.hasNext()){
+            String name = fileNames.next();
+            log.info("name={}", name);
+        }
+        log.info("fileNames end");
+
+        log.info("接收test事件完成.");
+        response.setStatus(HttpStatus.OK.value());
+        response.getWriter().append("Date: ").append(DateUtil.formatDate(new Date())).append("Connection: close");
+        response.getWriter().flush();
+    }
+
     @PostMapping(value = {"/listenMessage","/alarm"})
     public void receiveAlarm(HttpServletResponse response, HttpServletRequest request) throws IOException {
         log.info("收到监听事件");
@@ -188,6 +215,7 @@ public class HikCameraController {
                 throw new Exception("no multipartContent");
             }else {
                 List<FileItem> formData = sf.parseRequest(request);
+                log.info("formData Size:{}", formData.size());
                 for (FileItem fi : formData) {
                     if (fi.isFormField()) {
                         log.info("content-type:{}",fi.getContentType());
