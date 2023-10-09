@@ -38,6 +38,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import javax.servlet.http.HttpServletRequest;
@@ -195,6 +196,19 @@ public class HikCameraController {
         if(fileNames.hasNext()){
             String name = fileNames.next();
             log.info("name={}", name);
+            List<MultipartFile> files = multipartHttpServletRequest.getFiles(name);
+            for (MultipartFile file: files) {
+                log.info("file size:{}", file.getSize());
+                log.info("file content_type:{}", file.getContentType());
+                String output = "";
+                try {
+                    byte[] bytes = file.getBytes();
+                    output = new String(bytes, StandardCharsets.UTF_8);
+                } catch (IOException e) {
+                    log.error(e.getMessage(), e);
+                }
+                log.info("file content:{}",output);
+            }
         }
         log.info("fileNames end");
 
@@ -250,6 +264,7 @@ public class HikCameraController {
                         }
                     }
                 }
+                log.info("监听事件结束.");
                 response.setStatus(HttpStatus.OK.value());
                 response.getWriter().append("Date: ").append(DateUtil.formatDate(new Date())).append("Connection: close");
                 response.getWriter().flush();
