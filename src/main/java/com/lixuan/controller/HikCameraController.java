@@ -185,7 +185,7 @@ public class HikCameraController {
         MultipartHttpServletRequest multipartHttpServletRequest = (MultipartHttpServletRequest)request;
         Enumeration<String> parameterNames = multipartHttpServletRequest.getParameterNames();
         log.info("parameterNames begin");
-        if(parameterNames.hasMoreElements()){
+        while (parameterNames.hasMoreElements()){
             String name = parameterNames.nextElement();
             log.info("parameter name={}", name);
         }
@@ -193,7 +193,7 @@ public class HikCameraController {
 
         Iterator<String> fileNames = multipartHttpServletRequest.getFileNames();
         log.info("fileNames begin");
-        if(fileNames.hasNext()){
+        while (fileNames.hasNext()){
             String name = fileNames.next();
             log.info("name={}", name);
             List<MultipartFile> files = multipartHttpServletRequest.getFiles(name);
