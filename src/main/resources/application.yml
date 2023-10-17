@@ -18,6 +18,16 @@ server:
 spring:
   application:
     name: exapmle-server
+  redis:
+    host: 192.168.80.132
+    port: 6379
+    password: 123456
+    timeout: 50s
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
 system:
   listenMessage:
     header: 1
